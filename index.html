@@ -2,56 +2,236 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Clim Care Dashboard</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clim Care | Dashboard Inteligente</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; text-align: center; padding: 20px; }
-        .box { max-width: 380px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
-        h1 { color: #2ecc71; }
-        .val { font-size: 2.5em; font-weight: bold; color: #34495e; }
-        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        .primary { background: #2ecc71; color: white; }
-        .secondary { background: #3498db; color: white; margin-top: 20px; }
-        input { width: 85%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; }
+        :root {
+            --primary: #2ecc71;
+            --secondary: #3498db;
+            --bg: #f8f9fa;
+            --dark: #2c3e50;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--dark);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            background: #eee;
+            font-size: 0.8rem;
+            font-weight: bold;
+            color: #777;
+        }
+
+        .status-online { background: #d4edda; color: #155724; }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover { transform: translateY(-5px); }
+
+        .card i { font-size: 1.5rem; margin-bottom: 10px; color: var(--secondary); }
+        .card .label { font-size: 0.9rem; color: #95a5a6; display: block; }
+        .card .value { font-size: 1.8rem; font-weight: bold; margin-top: 5px; }
+
+        /* Estilo para o JSON (Simulação do SaaS) */
+        .saas-preview {
+            background: #2d3436;
+            color: #fab1a0;
+            padding: 15px;
+            border-radius: 15px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            text-align: left;
+            overflow-x: auto;
+            margin-top: 20px;
+            border-left: 5px solid var(--primary);
+        }
+
+        .saas-label {
+            font-size: 0.8rem;
+            color: #fff;
+            margin-bottom: 5px;
+            display: block;
+            text-transform: uppercase;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #27ae60; }
+
+        .btn-config { background: var(--secondary); color: white; }
+
+        input {
+            width: calc(100% - 30px);
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            outline: none;
+        }
     </style>
 </head>
 <body>
-    <div class="box">
+
+<div class="container">
+    <div class="header">
         <h1>Clim Care</h1>
-        <p id="st">Bluetooth Desconectado</p>
-        <div style="display:flex; justify-content: space-around;">
-            <div><small>TEMP</small><div id="t" class="val">--</div></div>
-            <div><small>UMID</small><div id="u" class="val">--</div></div>
+        <div id="status" class="status-badge">Aguardando Conexão BLE</div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <i class="fa-solid fa-temperature-half"></i>
+            <span class="label">Temperatura</span>
+            <div id="temp" class="value">--°C</div>
         </div>
-        <button class="btn primary" onclick="conectar()">CONECTAR VIA BLE</button>
-        <div style="margin-top:20px; border-top: 1px dashed #ccc; padding-top:15px;">
-            <input type="text" id="s" placeholder="Nome do Wi-Fi">
-            <input type="password" id="p" placeholder="Senha do Wi-Fi">
-            <button class="btn secondary" onclick="enviarWifi()">CONFIGURAR WI-FI</button>
+        <div class="card">
+            <i class="fa-solid fa-droplet"></i>
+            <span class="label">Umidade</span>
+            <div id="umid" class="value">--%</div>
         </div>
     </div>
-    <script>
-        let c;
-        async function conectar() {
-            const d = await navigator.bluetooth.requestDevice({filters: [{name:'ClimCare-Diag'}], optionalServices: [0x181A]});
-            const s = await d.gatt.connect();
-            const sv = await s.getPrimaryService(0x181A);
-            c = await sv.getCharacteristic(0x2A58);
-            await c.startNotifications();
-            document.getElementById('st').innerText = "Conectado ✅";
-            c.addEventListener('characteristicvaluechanged', (e) => {
-                const txt = new TextDecoder().decode(e.target.value);
-                const t = txt.match(/T:([\d.]+)/);
-                const u = txt.match(/U:([\d.]+)/);
-                if(t) document.getElementById('t').innerText = t[1]+"°";
-                if(u) document.getElementById('u').innerText = u[1]+"%";
+
+    <button class="btn btn-primary" onclick="connectBLE()">
+        <i class="fa-solid fa-bluetooth"></i> CONECTAR DISPOSITIVO
+    </button>
+
+    <div style="margin-top: 30px;">
+        <span class="saas-label"><i class="fa-solid fa-cloud-arrow-up"></i> Payload Enviado ao SaaS (JSON)</span>
+        <div id="json-preview" class="saas-preview">
+{
+  "deviceId": "CLIM-01",
+  "status": "offline",
+  "data": null
+}
+        </div>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+        <hr style="border: 0; border-top: 1px solid #ddd; margin-bottom: 20px;">
+        <input type="text" id="ssid" placeholder="Nome do Wi-Fi">
+        <input type="password" id="pass" placeholder="Senha do Wi-Fi">
+        <button class="btn btn-config" onclick="sendWifi()">CONFIGURAR REDE</button>
+    </div>
+</div>
+
+<script>
+    let characteristic;
+
+    async function connectBLE() {
+        try {
+            const device = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'ClimCare-Diag' }],
+                optionalServices: [0x181A]
             });
+            
+            const server = await device.gatt.connect();
+            const service = await server.getPrimaryService(0x181A);
+            characteristic = await service.getCharacteristic(0x2A58);
+            
+            await characteristic.startNotifications();
+            
+            document.getElementById('status').innerText = "Conectado ✅";
+            document.getElementById('status').className = "status-badge status-online";
+
+            characteristic.addEventListener('characteristicvaluechanged', (event) => {
+                const decoder = new TextDecoder('utf-8');
+                const value = decoder.decode(event.target.value);
+                
+                // Regex para extrair T e U
+                const tMatch = value.match(/T:([\d.]+)/);
+                const uMatch = value.match(/U:([\d.]+)/);
+
+                if (tMatch && uMatch) {
+                    const temp = tMatch[1];
+                    const umid = uMatch[1];
+                    
+                    document.getElementById('temp').innerText = temp + "°C";
+                    document.getElementById('umid').innerText = umid + "%";
+                    
+                    // Atualiza o JSON Visual
+                    updateJSON(temp, umid);
+                }
+            });
+        } catch (error) {
+            console.log(error);
+            alert("Erro ao conectar: " + error.message);
         }
-        async function enviarWifi() {
-            const m = `WIFI:${document.getElementById('s').value},${document.getElementById('p').value}`;
-            await c.writeValue(new TextEncoder().encode(m));
-            alert("Enviado!");
-        }
-    </script>
+    }
+
+    function updateJSON(t, u) {
+        const payload = {
+            deviceId: "CLIM-CARE-PRO-01",
+            temperature: parseFloat(t),
+            humidity: parseFloat(u),
+            timestamp: new Date().toISOString(),
+            apiKey: "BR-ANATEL-2026-X"
+        };
+        document.getElementById('json-preview').innerText = JSON.stringify(payload, null, 2);
+    }
+
+    async function sendWifi() {
+        if (!characteristic) return alert("Conecte o Bluetooth primeiro!");
+        const ssid = document.getElementById('ssid').value;
+        const pass = document.getElementById('pass').value;
+        const msg = `WIFI:${ssid},${pass}`;
+        await characteristic.writeValue(new TextEncoder().encode(msg));
+        alert("Comando Wi-Fi enviado!");
+    }
+</script>
+
 </body>
 </html>
