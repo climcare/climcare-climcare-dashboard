@@ -1,37 +1,114 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>Clim Care - Dashboard Realtime</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clim Care | Dashboard Profissional</title>
+    
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f4f4f4; }
-        .card { background: white; padding: 20px; border-radius: 15px; display: inline-block; margin: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); min-width: 200px; }
-        .value { font-size: 2em; font-weight: bold; color: #2c3e50; }
-        .unit { font-size: 0.5em; }
+        :root { --primary: #007bff; --bg: #f8f9fa; --card: #ffffff; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .container { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; }
+        .label { font-size: 0.9rem; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 2.5rem; font-weight: bold; margin: 10px 0; color: var(--primary); }
+        .unit { font-size: 1rem; color: #999; }
+        .chart-container { grid-column: 1 / -1; background: var(--card); padding: 20px; border-radius: 12px; height: 350px; }
+        .status { font-size: 0.8rem; margin-top: 10px; }
+        .online { color: #28a745; }
     </style>
 </head>
 <body>
-    <h1>Monitoramento Clim Care</h1>
-    <div class="card">
-        <div>Temperatura</div>
-        <div class="value" id="temp">--</div><span class="unit">°C</span>
+
+    <div class="header">
+        <h1>Clim Care</h1>
+        <p>Monitoramento de Clima em Tempo Real</p>
+        <div class="status" id="last-seen">Aguardando dados...</div>
     </div>
-    <div class="card">
-        <div>Umidade</div>
-        <div class="value" id="humi">--</div><span class="unit">%</span>
+
+    <div class="container">
+        <div class="card">
+            <div class="label">Temperatura</div>
+            <div class="value" id="temp">--</div><span class="unit">°C</span>
+        </div>
+        <div class="card">
+            <div class="label">Umidade</div>
+            <div class="value" id="humi">--</div><span class="unit">%</span>
+        </div>
+        <div class="card">
+            <div class="label">Bateria</div>
+            <div class="value" id="batt">--</div><span class="unit">%</span>
+        </div>
+        <div class="card">
+            <div class="label">Sinal RSSI</div>
+            <div class="value" id="rssi">--</div><span class="unit">dBm</span>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="myChart"></canvas>
+        </div>
     </div>
 
     <script>
+        // Configuração Firebase
         const firebaseConfig = { databaseURL: "https://climcare-e55b7-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.database().ref("devices/10"); // "10" é o seu DEVICE_ID [cite: 2]
+        const db = firebase.database().ref("devices/10");
 
+        // Configuração do Gráfico
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    data: [],
+                    borderColor: '#ff6384',
+                    tension: 0.3,
+                    fill: false
+                }, {
+                    label: 'Umidade (%)',
+                    data: [],
+                    borderColor: '#36a2eb',
+                    tension: 0.3,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: false } }
+            }
+        });
+
+        // Atualização em Tempo Real
         db.on('value', (snapshot) => {
             const data = snapshot.val();
-            if(data) {
-                document.getElementById('temp').innerText = data.temperature;
-                document.getElementById('humi').innerText = data.humidity;
+            if (data) {
+                // Atualiza Cards
+                document.getElementById('temp').innerText = data.temperature.toFixed(1);
+                document.getElementById('humi').innerText = data.humidity.toFixed(1);
+                document.getElementById('batt').innerText = data.battery;
+                document.getElementById('rssi').innerText = data.rssi;
+                document.getElementById('last-seen').innerHTML = '<span class="online">● Dispositivo Online</span> | ' + new Date().toLocaleTimeString();
+
+                // Atualiza Gráfico (Mantém os últimos 20 pontos)
+                const now = new Date().toLocaleTimeString();
+                if (myChart.data.labels.length > 20) {
+                    myChart.data.labels.shift();
+                    myChart.data.datasets[0].data.shift();
+                    myChart.data.datasets[1].data.shift();
+                }
+                myChart.data.labels.push(now);
+                myChart.data.datasets[0].data.push(data.temperature);
+                myChart.data.datasets[1].data.push(data.humidity);
+                myChart.chart.update();
             }
         });
     </script>
