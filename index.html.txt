@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Clim Care - Painel de Controle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f4f7f6; color: #333; }
+        .card { background: white; border-radius: 15px; padding: 20px; margin: 15px; shadow: 0 4px 8px rgba(0,0,0,0.1); display: inline-block; width: 140px; }
+        .value { font-size: 2em; font-weight: bold; color: #2c3e50; }
+        .btn { padding: 15px 30px; border-radius: 30px; border: none; cursor: pointer; font-size: 1em; margin: 10px; }
+        .connect { background: #27ae60; color: white; }
+        .reset { background: #e74c3c; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Clim Care</h1>
+    <p>Monitoramento em Tempo Real</p>
+    
+    <div class="card">
+        <div>Temperatura</div>
+        <div id="temp" class="value">--</div>
+    </div>
+    <div class="card">
+        <div>Umidade</div>
+        <div id="umid" class="value">--</div>
+    </div>
+
+    <br>
+    <button class="btn connect" onclick="conectar()">Conectar Dispositivo</button>
+    <button class="btn reset" onclick="enviarReset()">Resetar Wi-Fi</button>
+
+    <script>
+        let caracteristica;
+
+        async function conectar() {
+            try {
+                const dispositivo = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'ClimCare-Diag' }],
+                    optionalServices: ['181a']
+                });
+                const servidor = await dispositivo.gatt.connect();
+                const servico = await servidor.getPrimaryService('181a');
+                caracteristica = await servico.getCharacteristic('2a58');
+
+                // Ativa atualizações automáticas
+                await caracteristica.startNotifications();
+                caracteristica.addEventListener('characteristicvaluechanged', (event) => {
+                    const decoder = new TextDecoder('utf-8');
+                    const texto = decoder.decode(event.target.value);
+                    // Lógica simples para extrair T e U da string
+                    const temp = texto.match(/T: ([\d.]+)/);
+                    const umid = texto.match(/U: ([\d.]+)/);
+                    if(temp) document.getElementById('temp').innerText = temp[1] + "°C";
+                    if(umid) document.getElementById('umid').innerText = umid[1] + "%";
+                });
+                alert("Conectado com sucesso!");
+            } catch (erro) { console.error(erro); }
+        }
+
+        async function enviarReset() {
+            if (!caracteristica) return alert("Conecte primeiro!");
+            const encoder = new TextEncoder();
+            await caracteristica.writeValue(encoder.encode("RESET"));
+            alert("Comando de Reset enviado!");
+        }
+    </script>
+</body>
+</html>
