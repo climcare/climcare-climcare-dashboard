@@ -28,14 +28,22 @@
 
         .top-bar {
             display: flex; justify-content: space-between; align-items: center;
-            max-width: 1200px; margin: 0 auto 20px auto;
+            max-width: 1200px; margin: 0 auto 10px auto;
             background: var(--card-bg); padding: 15px 25px; border-radius: 12px; border: 1px solid #30363d;
         }
 
         .brand { color: var(--primary); font-weight: bold; font-size: 1.2rem; }
         .clock { font-size: 1.8rem; font-weight: 800; color: var(--primary); font-family: monospace; }
 
-        /* Banner de Alerta */
+        /* ÁREA DE LOG DO SISTEMA */
+        #system-log { 
+            max-width: 1200px; margin: 0 auto 15px auto; text-align: center; 
+            font-size: 0.8rem; color: #8b949e; letter-spacing: 1px; 
+        }
+        .log-error { color: var(--danger) !important; font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Banner de Alerta OMS */
         #health-alert {
             max-width: 1200px; margin: 0 auto 20px auto; padding: 15px;
             border-radius: 12px; display: none; text-align: center;
@@ -65,6 +73,8 @@
         <div class="clock" id="clock">00:00:00</div>
         <div><i class="fa-solid fa-wifi" style="color:var(--primary)"></i> <span id="rssi">--</span> dBm</div>
     </div>
+
+    <div id="system-log">Sincronizando com hardware...</div>
 
     <div id="health-alert">
         <i class="fa-solid fa-triangle-exclamation"></i> 
@@ -98,29 +108,32 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database().ref("devices/10");
 
-        // Config Chart.js (Resumido para o exemplo)
         const ctx = document.getElementById('mainChart').getContext('2d');
         const mainChart = new Chart(ctx, {
             type: 'line',
             data: { labels: [], datasets: [
-                { label: 'Temp', data: [], borderColor: '#ff4444', tension: 0.4 },
-                { label: 'Humi', data: [], borderColor: '#38bdf8', tension: 0.4 }
+                { label: 'Temp', data: [], borderColor: '#ff4444', tension: 0.4, pointRadius: 2 },
+                { label: 'Humi', data: [], borderColor: '#38bdf8', tension: 0.4, pointRadius: 2 }
             ]},
-            options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#30363d' } } } }
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { legend: { labels: { color: '#c9d1d9' } } },
+                scales: { 
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8b949e' } },
+                    x: { ticks: { color: '#8b949e' } }
+                } 
+            }
         });
 
-        // LÓGICA DE ALERTA OMS
         function checkHealth(t, h) {
             let messages = [];
             let isPanic = false;
 
-            // Regras Temperatura
             if (t > 26) { messages.push("Temperatura elevada: Risco de fadiga e proliferação bacteriana."); isPanic = true; }
-            if (t < 18) { messages.push("Temperatura baixa: Risco de choque térmico e problemas respiratórios."); isPanic = true; }
-
-            // Regras Umidade
-            if (h < 30) { messages.push("Umidade Crítica: Ar muito seco (Risco de infecções virais e ressecamento de mucosas)."); isPanic = true; }
-            if (h > 70) { messages.push("Umidade Elevada: Risco alto de mofo, fungos e ácaros."); isPanic = true; }
+            if (t < 18 && t > 0) { messages.push("Temperatura baixa: Risco de choque térmico."); isPanic = true; }
+            if (h < 30 && h > 0) { messages.push("Umidade Crítica: Ar muito seco (Risco de infecções virais)."); isPanic = true; }
+            if (h > 70) { messages.push("Umidade Elevada: Risco alto de mofo e fungos."); isPanic = true; }
 
             const alertDiv = document.getElementById('health-alert');
             const detailsDiv = document.getElementById('alert-details');
@@ -142,16 +155,25 @@
         db.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                // Atualiza números
                 document.getElementById('temp').innerText = data.temperature.toFixed(1);
                 document.getElementById('humi').innerText = data.humidity.toFixed(1);
                 document.getElementById('batt').innerText = data.battery;
                 document.getElementById('rssi').innerText = data.rssi;
 
+                // ATUALIZA LOG DE STATUS DO HARDWARE
+                const log = document.getElementById('system-log');
+                if (data.status) {
+                    log.innerText = "STATUS: " + data.status;
+                    if (data.status.includes("ERRO")) log.className = "log-error";
+                    else log.className = "";
+                }
+
                 checkHealth(data.temperature, data.humidity);
 
                 // Update Chart
                 const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                if (mainChart.data.labels.length > 10) { 
+                if (mainChart.data.labels.length > 12) { 
                     mainChart.data.labels.shift(); 
                     mainChart.data.datasets[0].data.shift(); 
                     mainChart.data.datasets[1].data.shift(); 
@@ -159,7 +181,7 @@
                 mainChart.data.labels.push(time);
                 mainChart.data.datasets[0].data.push(data.temperature);
                 mainChart.data.datasets[1].data.push(data.humidity);
-                mainChart.update();
+                mainChart.update('none');
             }
         });
     </script>
