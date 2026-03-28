@@ -6,90 +6,130 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #eef2f3; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); transition: 0.3s; }
         h1 { color: #27ae60; margin-bottom: 5px; }
-        #status { font-size: 0.8em; color: #7f8c8d; margin-bottom: 20px; }
-        .card { background: #f9f9f9; border-radius: 15px; padding: 15px; margin: 10px; display: inline-block; width: 120px; border: 1px solid #eee; }
-        .label { font-size: 0.9em; color: #7f8c8d; text-transform: uppercase; }
-        .value { font-size: 1.8em; font-weight: bold; color: #2c3e50; margin-top: 5px; }
-        .btn { width: 100%; padding: 15px; border-radius: 10px; border: none; cursor: pointer; font-size: 1em; font-weight: bold; margin-top: 10px; transition: 0.3s; }
-        .connect { background: #27ae60; color: white; }
-        .connect:active { background: #1e8449; }
-        .reset { background: white; color: #e74c3c; border: 2px solid #e74c3c; margin-top: 20px; font-size: 0.8em; padding: 10px; }
+        #status { font-size: 0.85em; color: #7f8c8d; margin-bottom: 25px; transition: 0.3s; font-weight: bold; }
+        .card-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 25px; }
+        .card { background: #f9f9f9; border-radius: 15px; padding: 20px; display: inline-block; width: 130px; border: 1px solid #eee; transition: 0.3s; }
+        .card.active { border-color: #27ae60; background: #f0fff4; }
+        .label { font-size: 0.9em; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; }
+        .value { font-size: 2em; font-weight: bold; color: #2c3e50; margin-top: 8px; }
+        .btn { width: 100%; padding: 16px; border-radius: 12px; border: none; cursor: pointer; font-size: 1.1em; font-weight: bold; margin-top: 10px; transition: 0.3s; text-transform: uppercase; }
+        .connect { background: #27ae60; color: white; box-shadow: 0 4px 10px rgba(39, 174, 96, 0.3); }
+        .connect:active { background: #1e8449; transform: scale(0.98); }
+        .reset { background: white; color: #e74c3c; border: 2px solid #e74c3c; margin-top: 25px; font-size: 0.8em; padding: 12px; }
+        .reset:active { background: #fff5f5; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Clim Care</h1>
-    <div id="status">Aguardando conexão...</div>
+    <div id="status">Aguardando conexão via Bluetooth...</div>
     
-    <div class="card">
-        <div class="label">Temperatura</div>
-        <div id="temp" class="value">--</div>
-    </div>
-    <div class="card">
-        <div class="label">Umidade</div>
-        <div id="umid" class="value">--</div>
+    <div class="card-container">
+        <div class="card" id="temp-card">
+            <div class="label">Temperatura</div>
+            <div id="temp" class="value">--</div>
+        </div>
+        <div class="card" id="umid-card">
+            <div class="label">Umidade</div>
+            <div id="umid" class="value">--</div>
+        </div>
     </div>
 
-    <button class="btn connect" onclick="conectar()">CONECTAR DISPOSITIVO</button>
+    <button class="btn connect" id="connect-btn" onclick="conectar()">CONECTAR DISPOSITIVO</button>
     <button class="btn reset" onclick="enviarReset()">RESETAR CONFIGURAÇÕES WI-FI</button>
 </div>
 
 <script>
     let caracteristica;
 
-  async function conectar() {
-    const statusDiv = document.getElementById('status');
-    try {
-        statusDiv.innerText = "Buscando ClimCare-Diag...";
-        
-        // Mudança crucial: usando 0x181A como número ou a string reconhecida
-        const dispositivo = await navigator.bluetooth.requestDevice({
-            filters: [{ name: 'ClimCare-Diag' }],
-            optionalServices: [0x181A] // Aqui usamos o formato numérico 0x
-        });
+    async function conectar() {
+        const statusDiv = document.getElementById('status');
+        const connectBtn = document.getElementById('connect-btn');
+        const tempCard = document.getElementById('temp-card');
+        const umidCard = document.getElementById('umid-card');
 
-        statusDiv.innerText = "Conectando...";
-        const servidor = await dispositivo.gatt.connect();
-        
-        statusDiv.innerText = "Buscando Serviço...";
-        const servico = await servidor.getPrimaryService(0x181A);
-        
-        statusDiv.innerText = "Lendo Sensores...";
-        // Aqui também usamos o formato hexadecimal para a característica
-        caracteristica = await servico.getCharacteristic(0x2A58); 
+        try {
+            statusDiv.innerText = "Buscando ClimCare-Diag... Ligue o GPS!";
+            statusDiv.style.color = "#333";
+            connectBtn.disabled = true;
 
-        await caracteristica.startNotifications();
-        statusDiv.innerText = "Monitorando em Tempo Real ✅";
-        statusDiv.style.color = "#27ae60";
+            // Correção crucial do UUID no formato numérico
+            const dispositivo = await navigator.bluetooth.requestDevice({
+                filters: [{ name: 'ClimCare-Diag' }],
+                optionalServices: [0x181A] 
+            });
 
-        caracteristica.addEventListener('characteristicvaluechanged', (event) => {
-            const decoder = new TextDecoder('utf-8');
-            const texto = decoder.decode(event.target.value);
+            statusDiv.innerText = "Conectando ao ESP32...";
+            const servidor = await dispositivo.gatt.connect();
             
-            const tempMatch = texto.match(/T\s*:\s*([\d.]+)/i);
-            const umidMatch = texto.match(/U\s*:\s*([\d.]+)/i);
+            // Pausa estratégica para o ESP32 respirar e estabilizar
+            await new Promise(resolve => setTimeout(resolve, 500));
 
-            if (tempMatch) document.getElementById('temp').innerText = tempMatch[1] + "°C";
-            if (umidMatch) document.getElementById('umid').innerText = umidMatch[1] + "%";
-        });
+            statusDiv.innerText = "Buscando Serviço de Sensores...";
+            const servico = await servidor.getPrimaryService(0x181A);
+            
+            statusDiv.innerText = "Ativando Monitoramento...";
+            // UUID da Característica também no formato 0x
+            caracteristica = await servico.getCharacteristic(0x2A58); 
 
-    } catch (erro) {
-        console.error(erro);
-        statusDiv.innerText = "Erro: " + erro.message;
-        statusDiv.style.color = "#e74c3c";
+            await caracteristica.startNotifications();
+            statusDiv.innerText = "Monitorando em Tempo Real ✅";
+            statusDiv.style.color = "#27ae60";
+            connectBtn.innerText = "DESCONECTAR";
+            connectBtn.style.background = "#e74c3c"; // Botão muda para vermelho
+            connectBtn.onclick = () => gattDisconnect(dispositivo);
+            connectBtn.disabled = false;
+            tempCard.classList.add('active');
+            umidCard.classList.add('active');
+
+            caracteristica.addEventListener('characteristicvaluechanged', (event) => {
+                const decoder = new TextDecoder('utf-8');
+                const texto = decoder.decode(event.target.value);
+                
+                // Regex robusta que aceita variações de espaços
+                const tempMatch = texto.match(/T\s*:\s*([\d.]+)/i);
+                const umidMatch = texto.match(/U\s*:\s*([\d.]+)/i);
+
+                if (tempMatch) document.getElementById('temp').innerText = tempMatch[1] + "°C";
+                if (umidMatch) document.getElementById('umid').innerText = umidMatch[1] + "%";
+            });
+
+            dispositivo.addEventListener('gattserverdisconnected', () => {
+                statusDiv.innerText = "Dispositivo Desconectado. Tente reconectar.";
+                statusDiv.style.color = "#e74c3c";
+                connectBtn.innerText = "CONECTAR DISPOSITIVO";
+                connectBtn.style.background = "#27ae60";
+                connectBtn.onclick = conectar;
+                connectBtn.disabled = false;
+                tempCard.classList.remove('active');
+                umidCard.classList.remove('active');
+            });
+
+        } catch (erro) {
+            console.error(erro);
+            statusDiv.innerText = "Erro: " + erro.message;
+            statusDiv.style.color = "#e74c3c";
+            connectBtn.disabled = false;
+        }
     }
-}
+
+    function gattDisconnect(dispositivo) {
+        if (dispositivo.gatt.connected) {
+            dispositivo.gatt.disconnect();
+        }
+    }
 
     async function enviarReset() {
         if (!caracteristica) return alert("Conecte via Bluetooth primeiro!");
-        if (confirm("Deseja realmente apagar as redes Wi-Fi salvas no Clim Care?")) {
+        if (confirm("ATENÇÃO: Deseja realmente apagar as redes Wi-Fi salvas no Clim Care?")) {
             try {
                 const encoder = new TextEncoder();
+                // Envia exatamente a string "RESET"
                 await caracteristica.writeValue(encoder.encode("RESET"));
-                alert("Comando enviado! O dispositivo irá reiniciar.");
+                alert("Comando enviado! O dispositivo irá reiniciar para abrir o portal de configuração.");
             } catch (e) {
                 alert("Erro ao enviar comando: " + e.message);
             }
