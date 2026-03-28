@@ -5,79 +5,53 @@
     <title>Clim Care Dashboard</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #f0f2f5; color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 25px; border-radius: 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        h1 { color: #27ae60; margin-bottom: 5px; }
-        #status { font-size: 0.8em; font-weight: bold; margin-bottom: 25px; color: #7f8c8d; }
-        .card { background: #fff; border-radius: 20px; padding: 20px; margin: 10px; display: inline-block; width: 130px; border: 2px solid #eee; transition: 0.3s; }
-        .card.active { border-color: #27ae60; background: #fafffa; }
-        .label { font-size: 0.8em; color: #95a5a6; text-transform: uppercase; }
-        .value { font-size: 2.2em; font-weight: bold; color: #2c3e50; margin-top: 10px; }
-        .btn { width: 100%; padding: 18px; border-radius: 15px; border: none; cursor: pointer; font-size: 1.1em; font-weight: bold; margin-top: 15px; transition: 0.3s; }
-        .connect { background: #27ae60; color: white; }
-        .reset { background: white; color: #e74c3c; border: 1px solid #e74c3c; font-size: 0.8em; margin-top: 30px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; text-align: center; padding: 20px; }
+        .box { max-width: 380px; margin: auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+        h1 { color: #2ecc71; }
+        .val { font-size: 2.5em; font-weight: bold; color: #34495e; }
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        .primary { background: #2ecc71; color: white; }
+        .secondary { background: #3498db; color: white; margin-top: 20px; }
+        input { width: 85%; padding: 12px; margin: 5px 0; border: 1px solid #ddd; border-radius: 8px; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h1>Clim Care</h1>
-    <div id="status">Desconectado</div>
-    
-    <div class="card" id="c-t">
-        <div class="label">Temperatura</div>
-        <div id="temp" class="value">--</div>
+    <div class="box">
+        <h1>Clim Care</h1>
+        <p id="st">Bluetooth Desconectado</p>
+        <div style="display:flex; justify-content: space-around;">
+            <div><small>TEMP</small><div id="t" class="val">--</div></div>
+            <div><small>UMID</small><div id="u" class="val">--</div></div>
+        </div>
+        <button class="btn primary" onclick="conectar()">CONECTAR VIA BLE</button>
+        <div style="margin-top:20px; border-top: 1px dashed #ccc; padding-top:15px;">
+            <input type="text" id="s" placeholder="Nome do Wi-Fi">
+            <input type="password" id="p" placeholder="Senha do Wi-Fi">
+            <button class="btn secondary" onclick="enviarWifi()">CONFIGURAR WI-FI</button>
+        </div>
     </div>
-    <div class="card" id="c-u">
-        <div class="label">Umidade</div>
-        <div id="umid" class="value">--</div>
-    </div>
-
-    <button class="btn connect" id="btn" onclick="conectar()">CONECTAR DISPOSITIVO</button>
-    <button class="btn reset" onclick="enviarReset()">RESETAR WI-FI</button>
-</div>
-
-<script>
-    let caract;
-
-    async function conectar() {
-        const s = document.getElementById('status');
-        const b = document.getElementById('btn');
-        try {
-            s.innerText = "Buscando...";
-            const d = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'ClimCare-Diag' }],
-                optionalServices: [0x181A]
-            });
-            const server = await d.gatt.connect();
-            await new Promise(r => setTimeout(r, 600)); 
-            const service = await server.getPrimaryService(0x181A);
-            caract = await service.getCharacteristic(0x2A58);
-            await caract.startNotifications();
-
-            s.innerText = "Monitorando ✅";
-            s.style.color = "#27ae60";
-            b.innerText = "DESCONECTAR";
-            b.style.background = "#e74c3c";
-            b.onclick = () => { d.gatt.disconnect(); window.location.reload(); };
-
-            caract.addEventListener('characteristicvaluechanged', (e) => {
+    <script>
+        let c;
+        async function conectar() {
+            const d = await navigator.bluetooth.requestDevice({filters: [{name:'ClimCare-Diag'}], optionalServices: [0x181A]});
+            const s = await d.gatt.connect();
+            const sv = await s.getPrimaryService(0x181A);
+            c = await sv.getCharacteristic(0x2A58);
+            await c.startNotifications();
+            document.getElementById('st').innerText = "Conectado ✅";
+            c.addEventListener('characteristicvaluechanged', (e) => {
                 const txt = new TextDecoder().decode(e.target.value);
-                const t = txt.match(/T\s*:\s*([\d.]+)/i);
-                const u = txt.match(/U\s*:\s*([\d.]+)/i);
-                if(t) { document.getElementById('temp').innerText = t[1]+"°C"; document.getElementById('c-t').classList.add('active'); }
-                if(u) { document.getElementById('umid').innerText = u[1]+"%"; document.getElementById('c-u').classList.add('active'); }
+                const t = txt.match(/T:([\d.]+)/);
+                const u = txt.match(/U:([\d.]+)/);
+                if(t) document.getElementById('t').innerText = t[1]+"°";
+                if(u) document.getElementById('u').innerText = u[1]+"%";
             });
-        } catch (err) { s.innerText = "Erro: " + err.message; }
-    }
-
-    async function enviarReset() {
-        if(!caract) return alert("Conecte primeiro!");
-        if(confirm("Limpar redes Wi-Fi?")) {
-            await caract.writeValue(new TextEncoder().encode("RESET"));
+        }
+        async function enviarWifi() {
+            const m = `WIFI:${document.getElementById('s').value},${document.getElementById('p').value}`;
+            await c.writeValue(new TextEncoder().encode(m));
             alert("Enviado!");
         }
-    }
-</script>
+    </script>
 </body>
 </html>
