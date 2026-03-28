@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clim Care | Live Industrial Dashboard</title>
+    <title>Clim Care | Monitoramento Crítico</title>
     
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
@@ -12,190 +12,186 @@
 
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --primary: #38bdf8;
-            --secondary: #818cf8;
-            --text: #f1f5f9;
-            --success: #22c55e;
+            --bg: #0b0e14;
+            --card-bg: #161b22;
+            --primary: #58a6ff;
+            --secondary: #79c0ff;
+            --text: #c9d1d9;
+            --success: #3fb950;
+            --warning: #d29922;
         }
 
         body {
-            font-family: 'Inter', system-ui, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
             background-color: var(--bg);
-            background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
             color: var(--text);
             margin: 0;
             padding: 20px;
-            min-height: 100vh;
         }
 
-        .header {
+        .top-bar {
             display: flex;
             justify-content: space-between;
             align-items: center;
             max-width: 1200px;
-            margin: 0 auto 30px auto;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            padding-bottom: 20px;
+            margin: 0 auto 20px auto;
+            background: var(--card-bg);
+            padding: 15px 25px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
         }
 
-        .brand h1 { margin: 0; font-size: 1.8rem; letter-spacing: -1px; color: var(--primary); }
-        .status-badge {
-            background: rgba(34, 197, 94, 0.2);
-            color: var(--success);
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .pulse {
-            width: 8px; height: 8px; background: var(--success);
-            border-radius: 50%; box-shadow: 0 0 0 rgba(34, 197, 94, 0.4);
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); } 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } }
+        .clock-section { font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+        .wifi-section { display: flex; align-items: center; gap: 10px; color: var(--success); }
 
         .grid {
             display: grid;
             max-width: 1200px;
             margin: 0 auto;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
         }
 
         .card {
             background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            padding: 25px;
-            border-radius: 16px;
-            transition: transform 0.3s ease;
+            border: 1px solid #30363d;
+            padding: 20px;
+            border-radius: 12px;
+            position: relative;
         }
 
-        .card:hover { transform: translateY(-5px); border-color: var(--primary); }
-
-        .card-header { display: flex; justify-content: space-between; color: #94a3b8; font-size: 0.9rem; }
-        .card-value { font-size: 3rem; font-weight: 800; margin: 15px 0; display: flex; align-items: baseline; gap: 5px; }
-        .card-unit { font-size: 1.2rem; color: #64748b; }
-
-        .chart-main {
+        .card-label { font-size: 0.8rem; color: #8b949e; text-transform: uppercase; margin-bottom: 10px; }
+        .card-main { display: flex; justify-content: space-between; align-items: center; }
+        .card-value { font-size: 2.8rem; font-weight: 600; color: #f0f6fc; }
+        .card-unit { font-size: 1rem; color: #8b949e; margin-left: 5px; }
+        
+        .chart-container {
             grid-column: 1 / -1;
             background: var(--card-bg);
-            padding: 25px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.1);
-            height: 400px;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #30363d;
+            height: 380px;
         }
 
-        footer { text-align: center; margin-top: 40px; color: #64748b; font-size: 0.8rem; }
+        footer { text-align: center; margin-top: 30px; color: #484f58; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <div class="header">
+    <div class="top-bar">
         <div class="brand">
-            <h1>CLIM CARE <small style="font-size: 0.5em; color: #64748b;">v1.0</small></h1>
+            <strong style="color:var(--primary)">CLIM CARE</strong> | Lab Monitor
         </div>
-        <div id="connection-status" class="status-badge">
-            <div class="pulse"></div> LIVE DATA
+        <div class="clock-section" id="realtime-clock">00:00:00</div>
+        <div class="wifi-section">
+            <i class="fa-solid fa-wifi"></i> <span id="wifi-label">Sinal: -- dBm</span>
         </div>
     </div>
 
     <div class="grid">
         <div class="card">
-            <div class="card-header">TEMPERATURA <i class="fa-solid fa-temperature-half"></i></div>
-            <div class="card-value"><span id="temp">--</span><span class="card-unit">°C</span></div>
-            <div id="temp-trend" style="font-size: 0.8rem;">Monitoramento estável</div>
+            <div class="card-label">Temperatura Ambiente</div>
+            <div class="card-main">
+                <div class="card-value"><span id="temp">--</span><span class="card-unit">°C</span></div>
+                <i class="fa-solid fa-temperature-three-quarters fa-2x" style="color: #ff7b72"></i>
+            </div>
         </div>
 
         <div class="card">
-            <div class="card-header">UMIDADE RELATIVA <i class="fa-solid fa-droplet"></i></div>
-            <div class="card-value"><span id="humi">--</span><span class="card-unit">%</span></div>
-            <div style="font-size: 0.8rem;">Ar em ambiente confinado</div>
+            <div class="card-label">Umidade Relativa</div>
+            <div class="card-main">
+                <div class="card-value"><span id="humi">--</span><span class="card-unit">%</span></div>
+                <i class="fa-solid fa-droplet fa-2x" style="color: #a5d6ff"></i>
+            </div>
         </div>
 
         <div class="card">
-            <div class="card-header">BATERIA <i class="fa-solid fa-battery-three-quarters"></i></div>
-            <div class="card-value"><span id="batt">--</span><span class="card-unit">%</span></div>
-            <div id="batt-status" style="font-size: 0.8rem;">Alimentação OK</div>
+            <div class="card-label">Nível de Bateria</div>
+            <div class="card-main">
+                <div class="card-value"><span id="batt">--</span><span class="card-unit">%</span></div>
+                <i id="batt-icon" class="fa-solid fa-battery-full fa-2x" style="color: var(--success)"></i>
+            </div>
         </div>
 
-        <div class="chart-main">
-            <canvas id="liveChart"></canvas>
+        <div class="chart-container">
+            <canvas id="mainChart"></canvas>
         </div>
     </div>
 
     <footer>
-        Sistema Clim Care - Feira de Tecnologia 2026 | ID: 10
+        Clim Care IoT Solution - ID: 10 | Sincronizado via Firebase
     </footer>
 
     <script>
-        // CONFIGURAÇÃO FIREBASE
+        // Relógio de Sistema (Tempo Real)
+        setInterval(() => {
+            document.getElementById('realtime-clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        // Firebase
         const firebaseConfig = { databaseURL: "https://climcare-e55b7-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database().ref("devices/10");
 
-        // CONFIGURAÇÃO DO GRÁFICO (CHART.JS)
-        Chart.defaults.color = '#94a3b8';
-        Chart.defaults.font.family = 'Inter';
-        
-        const ctx = document.getElementById('liveChart').getContext('2d');
-        const liveChart = new Chart(ctx, {
+        // Gráfico
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        const mainChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: [],
                 datasets: [{
                     label: 'Temperatura',
                     data: [],
-                    borderColor: '#38bdf8',
-                    backgroundColor: 'rgba(56, 189, 248, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3,
-                    pointRadius: 0
-                },
-                {
+                    borderColor: '#ff7b72',
+                    backgroundColor: 'rgba(255, 123, 114, 0.1)',
+                    fill: true, tension: 0.4
+                }, {
                     label: 'Umidade',
                     data: [],
-                    borderColor: '#818cf8',
-                    backgroundColor: 'rgba(129, 140, 248, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    borderWidth: 3,
-                    pointRadius: 0
+                    borderColor: '#a5d6ff',
+                    backgroundColor: 'rgba(165, 214, 255, 0.1)',
+                    fill: true, tension: 0.4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: true, position: 'top' } },
+                plugins: { legend: { labels: { color: '#c9d1d9' } } },
                 scales: {
-                    x: { grid: { display: false } },
-                    y: { grid: { color: 'rgba(255,255,255,0.05)' } }
+                    x: { grid: { display: false }, ticks: { color: '#8b949e' } },
+                    y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e' } }
                 }
             }
         });
 
-        // ESCUTADOR EM TEMPO REAL (SEM RELOAD)
+        // Atualização via Firebase
         db.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // 1. Atualiza os números (Cards) com animação suave
                 document.getElementById('temp').innerText = data.temperature.toFixed(1);
                 document.getElementById('humi').innerText = data.humidity.toFixed(1);
                 document.getElementById('batt').innerText = data.battery;
+                document.getElementById('wifi-label').innerText = `Sinal: ${data.rssi} dBm`;
 
-                // 2. Alerta visual de bateria baixa
-                const battLabel = document.getElementById('batt-status');
-                if(data.battery < 20) {
-                    battLabel.innerText = "CRÍTICO: CARREGAR!";
-                    battLabel.style.color = "#ef4444";
+                // Logística de Bateria (Cor do Ícone)
+                const bIcon = document.getElementById('batt-icon');
+                if(data.battery < 30) bIcon.style.color = '#f2cc60';
+                if(data.battery < 15) bIcon.style.color = '#ff7b72';
+
+                // Atualiza Gráfico
+                const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (mainChart.data.labels.length > 12) {
+                    mainChart.data.labels.shift();
+                    mainChart.data.datasets[0].data.shift();
+                    mainChart.data.datasets[1].data.shift();
                 }
-
-                // 3. Atualiza o gráfico em tempo real
-                const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                mainChart.data.labels.push(time);
+                mainChart.data.datasets[0].data.push(data.temperature);
+                mainChart.data.datasets[1].data.push(data.humidity);
+                mainChart.update();
+            }
+        });
+    </script>
+</body>
+</html>
