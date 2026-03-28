@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clim Care | Monitoramento Global</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        :root { --primary: #27ae60; --dark: #2c3e50; --bg: #ecf0f1; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--dark); }
+        .container { max-width: 600px; margin: auto; }
+        .header { text-align: center; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .header h1 { color: var(--primary); margin: 0; font-size: 1.8rem; }
+        .status-dot { height: 10px; width: 10px; background-color: #bbb; border-radius: 50%; display: inline-block; margin-right: 5px; }
+        .online { background-color: #2ecc71; box-shadow: 0 0 8px #2ecc71; }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .card i { font-size: 2rem; color: #3498db; margin-bottom: 10px; }
+        .card .val { font-size: 2.5rem; font-weight: bold; display: block; }
+        .card .label { font-size: 0.9rem; color: #7f8c8d; text-transform: uppercase; }
+
+        .info-footer { margin-top: 20px; background: #fff; padding: 15px; border-radius: 15px; font-size: 0.8rem; color: #7f8c8d; text-align: center; }
+        .refresh-bar { height: 4px; background: var(--primary); width: 0%; transition: width 5s linear; margin-top: 10px; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1><i class="fa-solid fa-cloud"></i> Clim Care Cloud</h1>
+        <p><span id="dot" class="status-dot"></span> <span id="status-text">Sincronizando com SaaS...</span></p>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <i class="fa-solid fa-temperature-three-quarters" style="color: #e67e22;"></i>
+            <span class="val" id="t">--.-°</span>
+            <span class="label">Temperatura</span>
+        </div>
+        <div class="card">
+            <i class="fa-solid fa-droplet" style="color: #3498db;"></i>
+            <span class="val" id="u">--.-%</span>
+            <span class="label">Umidade</span>
+        </div>
+    </div>
+
+    <div class="info-footer">
+        Dispositivo: <strong id="devId">CLIM-01</strong><br>
+        Última atualização: <span id="time">--:--:--</span>
+        <div class="refresh-bar" id="progress"></div>
+    </div>
+</div>
+
+<script>
+    // URL DA SUA API .NET (Onde o ESP32 envia os dados)
+    const API_URL = "https://climcare.vbweb.com.br/api/readings/register"; 
+
+    async function atualizarDashboard() {
+        const bar = document.getElementById('progress');
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        
+        try {
+            // 1. Faz a chamada para o seu Backend .NET
+            const response = await fetch(API_URL);
+            const data = await response.json();
+
+            // 2. Atualiza os campos na tela
+            document.getElementById('t').innerText = data.temperature.toFixed(1) + "°";
+            document.getElementById('u').innerText = data.humidity.toFixed(1) + "%";
+            document.getElementById('devId').innerText = data.deviceId;
+            document.getElementById('time').innerText = new Date(data.timestamp).toLocaleTimeString();
+
+            // Status Online
+            document.getElementById('dot').classList.add('online');
+            document.getElementById('status-text').innerText = "Dispositivo Online";
+            
+        } catch (error) {
+            console.error("Erro ao buscar dados do SaaS:", error);
+            document.getElementById('status-text').innerText = "Erro na conexão com SaaS";
+            document.getElementById('dot').classList.remove('online');
+        }
+
+        // Animação da barra de progresso (5 segundos para a próxima leitura)
+        setTimeout(() => {
+            bar.style.transition = 'width 5s linear';
+            bar.style.width = '100%';
+        }, 100);
+    }
+
+    // Inicia a atualização automática a cada 5 segundos
+    atualizarDashboard();
+    setInterval(atualizarDashboard, 5000);
+</script>
+
+</body>
+</html>
