@@ -40,51 +40,48 @@
 <script>
     let caracteristica;
 
-    async function conectar() {
-        const statusDiv = document.getElementById('status');
-        try {
-            statusDiv.innerText = "Buscando ClimCare-Diag...";
-            const dispositivo = await navigator.bluetooth.requestDevice({
-                filters: [{ name: 'ClimCare-Diag' }],
-                optionalServices: ['181a']
-            });
+  async function conectar() {
+    const statusDiv = document.getElementById('status');
+    try {
+        statusDiv.innerText = "Buscando ClimCare-Diag...";
+        
+        // Mudança crucial: usando 0x181A como número ou a string reconhecida
+        const dispositivo = await navigator.bluetooth.requestDevice({
+            filters: [{ name: 'ClimCare-Diag' }],
+            optionalServices: [0x181A] // Aqui usamos o formato numérico 0x
+        });
 
-            statusDiv.innerText = "Conectando ao GATT...";
-            const servidor = await dispositivo.gatt.connect();
+        statusDiv.innerText = "Conectando...";
+        const servidor = await dispositivo.gatt.connect();
+        
+        statusDiv.innerText = "Buscando Serviço...";
+        const servico = await servidor.getPrimaryService(0x181A);
+        
+        statusDiv.innerText = "Lendo Sensores...";
+        // Aqui também usamos o formato hexadecimal para a característica
+        caracteristica = await servico.getCharacteristic(0x2A58); 
+
+        await caracteristica.startNotifications();
+        statusDiv.innerText = "Monitorando em Tempo Real ✅";
+        statusDiv.style.color = "#27ae60";
+
+        caracteristica.addEventListener('characteristicvaluechanged', (event) => {
+            const decoder = new TextDecoder('utf-8');
+            const texto = decoder.decode(event.target.value);
             
-            statusDiv.innerText = "Buscando Serviço...";
-            const servico = await servidor.getPrimaryService('181a');
-            
-            statusDiv.innerText = "Lendo Sensores...";
-            caracteristica = await servico.getCharacteristic('2a58');
+            const tempMatch = texto.match(/T\s*:\s*([\d.]+)/i);
+            const umidMatch = texto.match(/U\s*:\s*([\d.]+)/i);
 
-            await caracteristica.startNotifications();
-            statusDiv.innerText = "Monitorando em Tempo Real ✅";
-            statusDiv.style.color = "#27ae60";
+            if (tempMatch) document.getElementById('temp').innerText = tempMatch[1] + "°C";
+            if (umidMatch) document.getElementById('umid').innerText = umidMatch[1] + "%";
+        });
 
-            caracteristica.addEventListener('characteristicvaluechanged', (event) => {
-                const decoder = new TextDecoder('utf-8');
-                const texto = decoder.decode(event.target.value);
-                
-                // Regex robusta para capturar números mesmo com variações de texto
-                const tempMatch = texto.match(/T\s*:\s*([\d.]+)/i);
-                const umidMatch = texto.match(/U\s*:\s*([\d.]+)/i);
-
-                if (tempMatch) document.getElementById('temp').innerText = tempMatch[1] + "°C";
-                if (umidMatch) document.getElementById('umid').innerText = umidMatch[1] + "%";
-            });
-
-            dispositivo.addEventListener('gattserverdisconnected', () => {
-                statusDiv.innerText = "Dispositivo Desconectado ❌";
-                statusDiv.style.color = "#e74c3c";
-            });
-
-        } catch (erro) {
-            console.error(erro);
-            statusDiv.innerText = "Erro: " + erro.message;
-            statusDiv.style.color = "#e74c3c";
-        }
+    } catch (erro) {
+        console.error(erro);
+        statusDiv.innerText = "Erro: " + erro.message;
+        statusDiv.style.color = "#e74c3c";
     }
+}
 
     async function enviarReset() {
         if (!caracteristica) return alert("Conecte via Bluetooth primeiro!");
