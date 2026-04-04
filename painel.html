@@ -34,18 +34,30 @@
         .brand { color: var(--primary); font-weight: bold; font-size: 1.2rem; letter-spacing: 1px; }
         .clock { font-size: 1.8rem; font-weight: 800; color: var(--primary); font-family: monospace; }
 
+        /* Status Badge e Botão Reset */
+        .status-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; margin-right: 10px; }
+        .online { background: rgba(63, 185, 80, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+        .offline { background: rgba(235, 71, 82, 0.2); color: var(--danger); border: 1px solid var(--danger); animation: blink 1s infinite; }
+        
+        .btn-reset { 
+            background: #21262d; color: #ff7b72; border: 1px solid #30363d; padding: 8px 15px; 
+            border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: bold; transition: 0.3s;
+        }
+        .btn-reset:hover { background: var(--danger); color: white; }
+
         #system-log { max-width: 1200px; margin: 0 auto 15px auto; text-align: center; font-size: 0.8rem; color: #8b949e; }
         .log-error { color: var(--danger) !important; font-weight: bold; animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
 
-        /* BANNER DE ALERTA COM RECOMENDAÇÕES */
         #health-alert {
             max-width: 1200px; margin: 0 auto 20px auto; padding: 20px;
             border-radius: 12px; display: none; text-align: center;
             border: 2px solid var(--danger); background: rgba(255, 68, 68, 0.1); color: #fff;
         }
 
-        .grid { display: grid; max-width: 1200px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .grid { display: grid; max-width: 1200px; margin: 0 auto; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; transition: 0.5s; }
+        .data-stale { opacity: 0.4; filter: grayscale(1); } /* Visual para quando estiver offline */
+
         .card { background: var(--card-bg); border: 1px solid #30363d; padding: 25px; border-radius: 12px; transition: 0.4s; }
         .card.danger { border-color: var(--danger) !important; box-shadow: 0 0 15px rgba(255, 68, 68, 0.2); }
         .card-label { font-size: 0.8rem; color: #8b949e; text-transform: uppercase; margin-bottom: 12px; }
@@ -58,6 +70,10 @@
 
     <div class="top-bar">
         <div class="brand">MONITORAMENTO INTELIGENTE DA QUALIDADE DO AR INTERNO</div>
+        <div style="display: flex; align-items: center;">
+            <div id="connection-status" class="status-badge offline">Aguardando...</div>
+            <button class="btn-reset" onclick="triggerReset()"><i class="fa-solid fa-rotate"></i> RESET</button>
+        </div>
         <div class="clock" id="clock">00:00:00</div>
         <div><i class="fa-solid fa-wifi" style="color:var(--primary)"></i> <span id="rssi">--</span> dBm</div>
     </div>
@@ -71,7 +87,7 @@
         <div id="alert-details" style="font-size: 1rem; line-height: 1.5; color: #ffbaba;"></div>
     </div>
 
-    <div class="grid">
+    <div class="grid" id="main-grid">
         <div class="card" id="card-temp">
             <div class="card-label">Temperatura</div>
             <div class="card-value"><span id="temp">--</span><small style="font-size: 1.2rem; color: #8b949e;">°C</small></div>
@@ -91,11 +107,19 @@
     </div>
 
     <script>
+        let lastUpdateTimestamp = 0;
         setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
 
         const firebaseConfig = { databaseURL: "https://climcare-e55b7-default-rtdb.firebaseio.com/" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database().ref("devices/10");
+
+        // Função de Reset
+        function triggerReset() {
+            if(confirm("Deseja reiniciar o dispositivo remotamente?")) {
+                db.update({ cmd: 1 }).then(() => alert("Comando enviado!"));
+            }
+        }
 
         const ctx = document.getElementById('mainChart').getContext('2d');
         const mainChart = new Chart(ctx, {
@@ -107,20 +131,15 @@
             options: { responsive: true, maintainAspectRatio: false, scales: { y: { grid: { color: '#30363d' } } } }
         });
 
-        // LÓGICA DE ALERTA OMS/ANVISA COM RECOMENDAÇÕES REATIVADAS
         function checkHealth(t, h, st) {
             let messages = [];
             let isPanic = false;
 
-            // Alertas de Temperatura (Padrão RE 09 ANVISA: 20-24°C)
             if (t > 24) messages.push("<b>TEMPERATURA ALTA:</b> Risco de fadiga térmica e aceleração metabólica bacteriana.");
             if (t < 20 && t > 0) messages.push("<b>TEMPERATURA BAIXA:</b> Desconforto térmico e risco de choque respiratório.");
-
-            // Alertas de Umidade (Padrão OMS/ANVISA: 40-60%)
             if (h < 40 && h > 0) messages.push("<b>UMIDADE CRÍTICA (AR SECO):</b> Risco de infecções virais e ressecamento de mucosas.");
             if (h > 60) messages.push("<b>UMIDADE ELEVADA:</b> Propício para proliferação de fungos, mofo e ácaros.");
 
-            // Alerta de Erro de Hardware
             if (st && st.includes("ERRO")) {
                 messages.push("<b>FALHA NO DISPOSITIVO:</b> Verifique a conexão física do sensor DHT11.");
                 isPanic = true;
@@ -146,14 +165,21 @@
         db.on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                lastUpdateTimestamp = Date.now();
                 const t = data.temperature || 0;
                 const h = data.humidity || 0;
                 const st = data.status || "Operacional";
 
                 document.getElementById('temp').innerText = t.toFixed(1);
                 document.getElementById('humi').innerText = h.toFixed(1);
-                document.getElementById('batt').innerText = data.battery;
-                document.getElementById('rssi').innerText = data.rssi;
+                document.getElementById('batt').innerText = data.battery || 0;
+                document.getElementById('rssi').innerText = data.rssi || 0;
+
+                // Status de Conexão Ativo
+                const statusBadge = document.getElementById('connection-status');
+                statusBadge.innerText = "SISTEMA ATIVO";
+                statusBadge.className = "status-badge online";
+                document.getElementById('main-grid').classList.remove('data-stale');
 
                 const log = document.getElementById('system-log');
                 log.innerText = "SISTEMA: " + st;
@@ -173,6 +199,20 @@
                 mainChart.update('none');
             }
         });
+
+        // Watchdog Visual: Detecta se o dispositivo parou de enviar dados (mais de 45 segundos)
+        setInterval(() => {
+            if (lastUpdateTimestamp > 0) {
+                const diff = (Date.now() - lastUpdateTimestamp) / 1000;
+                if (diff > 45) {
+                    const statusBadge = document.getElementById('connection-status');
+                    statusBadge.innerText = "SISTEMA OFFLINE";
+                    statusBadge.className = "status-badge offline";
+                    document.getElementById('main-grid').classList.add('data-stale');
+                    document.getElementById('system-log').innerText = "AVISO: Dispositivo perdeu a conexão com a nuvem.";
+                }
+            }
+        }, 10000);
     </script>
 </body>
 </html>
