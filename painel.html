@@ -204,7 +204,7 @@
         setInterval(() => {
             if (lastUpdateTimestamp > 0) {
                 const diff = (Date.now() - lastUpdateTimestamp) / 1000;
-                if (diff > 365) {
+                if (diff > 400) {
                     const statusBadge = document.getElementById('connection-status');
                     statusBadge.innerText = "SISTEMA OFFLINE";
                     statusBadge.className = "status-badge offline";
