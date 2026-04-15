@@ -3,211 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clim Care - Modo Clínico</title>
+    <title>Clim Care Dashboard - Real-Time</title>
     <style>
         :root {
-            /* Paleta Saúde/Clínica */
-            --clinico-dark: #1b4332;  /* Verde floresta profundo */
-            --clinico-mid: #2d6a4f;   /* Verde médico */
-            --clinico-light: #d8f3dc; /* Verde menta clarinho */
-            --alert-red: #e63946;     /* Vermelho de emergência */
-            --bg-grad: linear-gradient(135deg, #f0f7f4 0%, #e2eee7 100%);
+            --bg-deep: #0b1d16; /* Fundo escuro conforme imagem */
+            --clinico-light: #4ade80; /* Verde menta saúde */
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(74, 222, 128, 0.2);
+            --text-silver: #cbd5e1;
+            --alert-red: #e63946;
         }
 
         body {
             font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg-grad);
-            color: var(--clinico-dark);
-            margin: 0; padding: 20px;
+            background: radial-gradient(circle at top, #143628 0%, #0b1d16 100%);
+            color: white; margin: 0; padding: 15px;
+            display: flex; justify-content: center;
         }
 
-        /* Animação de Alerta Piscante */
-        @keyframes alert-pulse {
-            0% { background-color: white; }
-            50% { background-color: #ffcccc; border-color: var(--alert-red); }
-            100% { background-color: white; }
+        .app-container { max-width: 450px; width: 100%; }
+
+        /* Estilo dos Grupos (conforme imagem de referência) */
+        .main-group {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px; padding: 20px;
+            margin-bottom: 15px; backdrop-filter: blur(10px);
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
         }
 
-        .alert-active {
-            animation: alert-pulse 1s infinite;
-            border: 2px solid var(--alert-red) !important;
+        .label { font-size: 10px; text-transform: uppercase; color: var(--text-silver); }
+        .value { font-size: 22px; font-weight: bold; display: block; margin: 4px 0; }
+        
+        /* Área de Alerta Dinâmica */
+        .alert-box {
+            display: none; /* Só aparece se houver anomalia */
+            background: rgba(230, 57, 70, 0.15);
+            border: 1px solid var(--alert-red);
+            border-radius: 20px; padding: 15px;
+            margin-bottom: 15px; animation: pulse 2s infinite;
         }
 
-        .container { max-width: 500px; margin: auto; }
-
-        header { text-align: center; margin-bottom: 20px; }
-        h1 { font-size: 22px; font-weight: 800; color: var(--clinico-mid); }
-
-        /* Lista de Dispositivos */
-        .device-card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-            border: 1px solid #e0e0e0;
+        @keyframes pulse {
+            0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; }
         }
 
-        .status-badge {
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            background: #eee;
-        }
-
-        .status-online { background: #c7f9cc; color: #2d6a4f; }
-
-        /* Dashboard Detalhado (Estilo Imagem) */
-        .dashboard {
-            display: none;
-            background: var(--clinico-dark); /* Fundo escuro como na imagem, mas verde */
-            color: white;
-            padding: 20px;
-            border-radius: 25px;
-        }
-
-        .stat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .stat-box {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 15px;
-            backdrop-filter: blur(5px);
-        }
-
-        .stat-label { font-size: 11px; text-transform: uppercase; color: #b7e4c7; }
-        .stat-value { font-size: 20px; font-weight: bold; display: block; }
-
-        .btn-back {
-            background: none; border: 1px solid white; color: white;
-            padding: 8px 15px; border-radius: 10px; cursor: pointer;
-            margin-bottom: 15px;
+        .footer-card {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            padding: 15px; border-radius: 20px;
         }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div id="screen-list">
-        <header>
-            <h1>Meus dispositivos IAQ</h1>
-            <p style="font-size: 12px;">Selecione uma unidade para ver detalhes</p>
-        </header>
-        <div id="devices-container">
-            </div>
+<div class="app-container">
+    <header style="text-align:center; margin-bottom:20px;">
+        <h1 style="font-size: 24px; margin:0;">Qualidade do Ar</h1>
+        <p style="font-size: 12px; color: var(--text-silver);">Monitoramento em Tempo Real</p>
+    </header>
+
+    <div id="alertArea" class="alert-box">
+        <div style="font-weight: bold; font-size: 14px;">⚠️ ALERTA DE ANOMALIA</div>
+        <div id="alertMsg" style="font-size: 12px;">Verificando indicadores...</div>
     </div>
 
-    <div id="screen-detail" class="dashboard">
-        <button class="btn-back" onclick="showList()">← Voltar</button>
-        <h2 id="det-name" style="margin:0">Sala --</h2>
-        <p id="det-status" style="font-size: 12px; color: #95d5b2;">Atualizado em tempo real</p>
+    <div class="main-group">
+        <div>
+            <span class="label">🌡️ Temperatura</span>
+            <span id="temp-val" class="value">--°C</span>
+        </div>
+        <div style="border-left: 1px solid var(--glass-border); padding-left:15px;">
+            <span class="label">💧 Umidade</span>
+            <span id="hum-val" class="value">--%</span>
+        </div>
+    </div>
 
-        <div class="stat-grid">
-            <div class="stat-box">
-                <span class="stat-label">🌡️ Temperatura</span>
-                <span class="stat-value" id="val-temp">--°C</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">💧 Humidade</span>
-                <span class="stat-value" id="val-hum">--%</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">☁️ CO₂</span>
-                <span class="stat-value" id="val-co2">-- ppm</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">🌫️ PM2.5</span>
-                <span class="stat-value" id="val-pm25">-- µg/m³</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">🔊 Ruído</span>
-                <span class="stat-value" id="val-noise">-- dB</span>
-            </div>
-            <div class="stat-box">
-                <span class="stat-label">🔋 Bateria</span>
-                <span class="stat-value" id="val-batt">--%</span>
-            </div>
+    <div class="main-group">
+        <div>
+            <span class="label">☁️ CO₂</span>
+            <span id="co2-val" class="value">-- ppm</span>
+        </div>
+        <div style="border-left: 1px solid var(--glass-border); padding-left:15px;">
+            <span class="label">🌫️ PM2.5</span>
+            <span id="pm25-val" class="value">-- µg/m³</span>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+        <div class="footer-card">
+            <span class="label">🔊 Ruído</span>
+            <span id="noise-val" class="value">-- dB</span>
+        </div>
+        <div class="footer-card">
+            <span class="label">🔋 Bateria</span>
+            <span id="batt-val" class="value">--%</span>
         </div>
     </div>
 </div>
 
 <script>
-    // Configurações vindas do teu PDF [cite: 50, 51, 52]
-    const API_READ = "https://climcare.vbweb.com.br/api/readings/latest"; // Endpoint fictício para leitura
-    const API_KEY = "ESP32-CLI1-DEV2-B4N8Q2L7T5"; 
+    // Configurações do seu backend 
+    const API_GET_URL = "https://climcare.vbweb.com.br/api/readings/latest"; 
+    const DEVICE_ID = 11; // ID definido no simulador 
 
-    // Lista de dispositivos (Pode vir de uma base de dados)
-    let myDevices = [
-        { id: 11, name: "Sala 12 - Oncologia", active: true, alert: false, lastData: {} },
-        { id: 14, name: "Sala 05 - Triagem", active: true, alert: false, lastData: {} }
-    ];
-
-    // Função para renderizar a lista
-    function renderList() {
-        const container = document.getElementById('devices-container');
-        container.innerHTML = '';
-        
-        myDevices.forEach(dev => {
-            const card = document.createElement('div');
-            card.className = `device-card \${dev.alert ? 'alert-active' : ''}`;
-            card.onclick = () => showDashboard(dev.id);
-            
-            card.innerHTML = `
-                <div>
-                    <div style="font-weight:bold">\${dev.name}</div>
-                    <div style="font-size:11px; color:#666">ID: \${dev.id}</div>
-                </div>
-                <span class="status-badge \${dev.active ? 'status-online' : ''}">
-                    \${dev.active ? '● ATIVO' : 'OFFLINE'}
-                </span>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    // Função para procurar dados da API
-    async function updateData() {
+    async function fetchData() {
         try {
-            // No mundo real, farias fetch(API_READ) aqui.
-            // Para teste, vamos simular que o ID 11 recebeu um alerta de CO2 alto [cite: 86]
-            myDevices[0].alert = Math.random() > 0.7; // Simula anomalia aleatória para veres a piscar
-            
-            renderList();
-        } catch (e) {
-            console.error("Erro ao procurar dados", e);
+            // No mundo real, aqui você faria a chamada ao seu SaaS
+            const response = await fetch(`\${API_GET_URL}?deviceId=\${DEVICE_ID}`);
+            const data = await response.json();
+
+            // Atualiza a interface com os nomes de variáveis do seu IoT 
+            document.getElementById('temp-val').innerText = `\${data.temperature}°C`;
+            document.getElementById('hum-val').innerText = `\${data.humidity}%`;
+            document.getElementById('co2-val').innerText = `\${data.co2} ppm`;
+            document.getElementById('pm25-val').innerText = `\${data.pm25} µg/m³`;
+            document.getElementById('noise-val').innerText = `\${data.noise} dB`;
+            document.getElementById('batt-val').innerText = `\${data.battery}%`;
+
+            // Lógica de Alerta Automático
+            checkAnomalies(data);
+
+        } catch (error) {
+            console.log("Aguardando dados do dispositivo...");
         }
     }
 
-    function showDashboard(id) {
-        const dev = myDevices.find(d => d.id === id);
-        document.getElementById('screen-list').style.display = 'none';
-        document.getElementById('screen-detail').style.display = 'block';
-        
-        document.getElementById('det-name').innerText = dev.name;
-        // Aqui preencherias com dev.lastData.temperature etc [cite: 83]
-        document.getElementById('val-temp').innerText = "24°C";
-        document.getElementById('val-co2').innerText = "450 ppm";
+    function checkAnomalies(data) {
+        const alertArea = document.getElementById('alertArea');
+        const alertMsg = document.getElementById('alertMsg');
+
+        // Exemplo: Alerta se CO2 > 1000 ou Temp > 35 (Cenários do simulador) 
+        if (data.co2 > 1000 || data.temperature > 35) {
+            alertArea.style.display = 'block';
+            alertMsg.innerText = data.co2 > 1000 ? "Nível de CO₂ Crítico! Ventile o ambiente." : "Temperatura elevada detectada.";
+        } else {
+            alertArea.style.display = 'none';
+        }
     }
 
-    function showList() {
-        document.getElementById('screen-list').style.display = 'block';
-        document.getElementById('screen-detail').style.display = 'none';
-    }
-
-    // Iniciar
-    renderList();
-    setInterval(updateData, 5000); // Atualiza a cada 5 segundos
+    // Atualiza a cada 5 segundos para simular tempo real
+    setInterval(fetchData, 5000);
+    fetchData(); // Chamada inicial
 </script>
-
 </body>
 </html>
