@@ -3,147 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Clim Care Dashboard - Real-Time</title>
+    <title>Clim Care Premium</title>
     <style>
         :root {
-            --bg-deep: #0b1d16; /* Fundo escuro conforme imagem */
-            --clinico-light: #4ade80; /* Verde menta saúde */
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(74, 222, 128, 0.2);
-            --text-silver: #cbd5e1;
-            --alert-red: #e63946;
+            --bg-ultra-dark: #040d0a; /* O verde "quase preto" do mockup */
+            --health-green: #4ade80;  /* Verde menta para detalhes */
+            --glass: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(74, 222, 128, 0.15);
+            --text-silver: #94a3b8;
         }
 
-        body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: radial-gradient(circle at top, #143628 0%, #0b1d16 100%);
-            color: white; margin: 0; padding: 15px;
-            display: flex; justify-content: center;
+        body, html { 
+            margin: 0; padding: 0; height: 100%; 
+            background-color: var(--bg-ultra-dark);
+            color: white; font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
         }
 
-        .app-container { max-width: 450px; width: 100%; }
+        /* Gestão de Telas */
+        .screen { display: none; height: 100vh; width: 100vw; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+        .screen.active { display: flex; }
 
-        /* Estilo dos Grupos (conforme imagem de referência) */
-        .main-group {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px; padding: 20px;
-            margin-bottom: 15px; backdrop-filter: blur(10px);
-            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
-        }
+        /* --- TELA LOGIN --- */
+        .login-card { background: var(--glass); border: 1px solid var(--glass-border); padding: 40px; border-radius: 30px; text-align: center; width: 80%; max-width: 350px; backdrop-filter: blur(10px); }
+        input { width: 100%; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; background: var(--health-green); color: var(--bg-ultra-dark); border: none; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        .label { font-size: 10px; text-transform: uppercase; color: var(--text-silver); }
-        .value { font-size: 22px; font-weight: bold; display: block; margin: 4px 0; }
+        /* --- TELA LISTA DISPOSITIVOS --- */
+        .device-card { width: 100%; max-width: 400px; background: var(--glass); border: 1px solid var(--glass-border); padding: 20px; border-radius: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.3s; }
+        .device-card:hover { border-color: var(--health-green); box-shadow: 0 0 15px rgba(74, 222, 128, 0.2); }
+        .alert-blink { border-color: #ef4444; animation: blink 1.5s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* --- TELA DASHBOARD (SCROLL LATERAL) --- */
+        .scroll-container { display: flex; overflow-x: auto; snap-type: x mandatory; width: 100%; height: 80vh; scroll-behavior: smooth; }
+        .dash-page { min-width: 100vw; snap-align: start; padding: 20px; box-sizing: border-box; }
         
-        /* Área de Alerta Dinâmica */
-        .alert-box {
-            display: none; /* Só aparece se houver anomalia */
-            background: rgba(230, 57, 70, 0.15);
-            border: 1px solid var(--alert-red);
-            border-radius: 20px; padding: 15px;
-            margin-bottom: 15px; animation: pulse 2s infinite;
-        }
+        /* Layout Indicadores (Estilo Mockup) */
+        .indicator-group { background: var(--glass); border: 1px solid var(--glass-border); border-radius: 25px; padding: 20px; margin-bottom: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .val-box { position: relative; }
+        .val-label { font-size: 11px; color: var(--text-silver); text-transform: uppercase; letter-spacing: 1px; }
+        .val-number { font-size: 24px; font-weight: bold; display: block; margin-top: 5px; }
+        
+        /* Diagnóstico */
+        .diagnosis-card { background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; padding: 20px; border-radius: 20px; }
 
-        @keyframes pulse {
-            0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; }
-        }
-
-        .footer-card {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            padding: 15px; border-radius: 20px;
-        }
+        /* Esconder scrollbar */
+        .scroll-container::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <header style="text-align:center; margin-bottom:20px;">
-        <h1 style="font-size: 24px; margin:0;">Qualidade do Ar</h1>
-        <p style="font-size: 12px; color: var(--text-silver);">Monitoramento em Tempo Real</p>
-    </header>
-
-    <div id="alertArea" class="alert-box">
-        <div style="font-weight: bold; font-size: 14px;">⚠️ ALERTA DE ANOMALIA</div>
-        <div id="alertMsg" style="font-size: 12px;">Verificando indicadores...</div>
-    </div>
-
-    <div class="main-group">
-        <div>
-            <span class="label">🌡️ Temperatura</span>
-            <span id="temp-val" class="value">--°C</span>
-        </div>
-        <div style="border-left: 1px solid var(--glass-border); padding-left:15px;">
-            <span class="label">💧 Umidade</span>
-            <span id="hum-val" class="value">--%</span>
+    <div id="screen-login" class="screen active">
+        <div class="login-card">
+            <h2 style="color: var(--health-green)">Clim Care</h2>
+            <p style="color: var(--text-silver); font-size: 14px;">Acesso Restrito</p>
+            <input type="text" placeholder="Usuário">
+            <input type="password" placeholder="Senha">
+            <button onclick="changeScreen('screen-devices')">ENTRAR</button>
         </div>
     </div>
 
-    <div class="main-group">
-        <div>
-            <span class="label">☁️ CO₂</span>
-            <span id="co2-val" class="value">-- ppm</span>
+    <div id="screen-devices" class="screen">
+        <h3 style="margin-bottom: 30px;">Unidades de Monitoramento</h3>
+        <div class="device-card alert-blink" onclick="changeScreen('screen-dash')">
+            <div>
+                <strong style="display:block">Sala 12 — Oncologia</strong>
+                <small style="color: var(--text-silver)">ID: 11</small>
+            </div>
+            <span style="color: #ef4444; font-size: 12px;">⚠️ ANOMALIA</span>
         </div>
-        <div style="border-left: 1px solid var(--glass-border); padding-left:15px;">
-            <span class="label">🌫️ PM2.5</span>
-            <span id="pm25-val" class="value">-- µg/m³</span>
+        <div class="device-card" onclick="changeScreen('screen-dash')">
+            <div>
+                <strong style="display:block">Sala 05 — Triagem</strong>
+                <small style="color: var(--text-silver)">ID: 14</small>
+            </div>
+            <span style="color: var(--health-green); font-size: 12px;">● ATIVO</span>
+        </div>
+    </div>
+
+    <div id="screen-dash" class="screen" style="padding: 0;">
+        <div style="padding: 20px; width: 100%; box-sizing: border-box; display: flex; justify-content: space-between;">
+            <button onclick="changeScreen('screen-devices')" style="width: auto; padding: 5px 15px; background: none; border: 1px solid var(--text-silver); color: white;">← Voltar</button>
+            <span style="color: var(--health-green)">Sala 12</span>
+        </div>
+
+        <div class="scroll-container">
+            <div class="dash-page">
+                <div class="indicator-group">
+                    <div class="val-box">
+                        <span class="val-label">🌡️ Temp.</span>
+                        <span class="val-number">38°C</span>
+                    </div>
+                    <div class="val-box">
+                        <span class="val-label">💧 Humid.</span>
+                        <span class="val-number">12%</span>
+                    </div>
+                </div>
+                <div class="indicator-group">
+                    <div class="val-box">
+                        <span class="val-label">☁️ CO₂</span>
+                        <span class="val-number">550 ppm</span>
+                    </div>
+                    <div class="val-box">
+                        <span class="val-label">🌫️ PM2.5</span>
+                        <span class="val-number">150 µg</span>
+                    </div>
+                </div>
+                <p style="text-align: center; color: var(--text-silver); font-size: 12px;">Deslize para ver diagnóstico →</p>
+            </div>
+
+            <div class="dash-page">
+                <div class="diagnosis-card">
+                    <h4 style="margin: 0 0 10px 0;">🔴 Alerta Crítico</h4>
+                    <p style="font-size: 14px;"><strong>Diagnóstico:</strong> Possível falha no sistema de climatização ou início de combustão (Incêndio).</p>
+                    <p style="font-size: 14px;"><strong>Orientação:</strong> Evacuar a sala imediatamente e verificar o painel de incêndio central.</p>
+                </div>
+            </div>
+
+            <div class="dash-page">
+                <div class="indicator-group" style="height: 200px; display: flex; align-items: flex-end; justify-content: space-around;">
+                    <div style="width: 20px; height: 40%; background: var(--health-green); border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 80%; background: var(--health-green); border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 60%; background: var(--health-green); border-radius: 5px;"></div>
+                    <div style="width: 20px; height: 95%; background: #ef4444; border-radius: 5px;"></div>
+                </div>
+                <h4 style="text-align: center;">Histórico 24h</h4>
+            </div>
         </div>
     </div>
 
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-        <div class="footer-card">
-            <span class="label">🔊 Ruído</span>
-            <span id="noise-val" class="value">-- dB</span>
-        </div>
-        <div class="footer-card">
-            <span class="label">🔋 Bateria</span>
-            <span id="batt-val" class="value">--%</span>
-        </div>
-    </div>
-</div>
-
-<script>
-    // Configurações do seu backend 
-    const API_GET_URL = "https://climcare.vbweb.com.br/api/readings/latest"; 
-    const DEVICE_ID = 11; // ID definido no simulador 
-
-    async function fetchData() {
-        try {
-            // No mundo real, aqui você faria a chamada ao seu SaaS
-            const response = await fetch(`\${API_GET_URL}?deviceId=\${DEVICE_ID}`);
-            const data = await response.json();
-
-            // Atualiza a interface com os nomes de variáveis do seu IoT 
-            document.getElementById('temp-val').innerText = `\${data.temperature}°C`;
-            document.getElementById('hum-val').innerText = `\${data.humidity}%`;
-            document.getElementById('co2-val').innerText = `\${data.co2} ppm`;
-            document.getElementById('pm25-val').innerText = `\${data.pm25} µg/m³`;
-            document.getElementById('noise-val').innerText = `\${data.noise} dB`;
-            document.getElementById('batt-val').innerText = `\${data.battery}%`;
-
-            // Lógica de Alerta Automático
-            checkAnomalies(data);
-
-        } catch (error) {
-            console.log("Aguardando dados do dispositivo...");
+    <script>
+        function changeScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
         }
-    }
 
-    function checkAnomalies(data) {
-        const alertArea = document.getElementById('alertArea');
-        const alertMsg = document.getElementById('alertMsg');
-
-        // Exemplo: Alerta se CO2 > 1000 ou Temp > 35 (Cenários do simulador) 
-        if (data.co2 > 1000 || data.temperature > 35) {
-            alertArea.style.display = 'block';
-            alertMsg.innerText = data.co2 > 1000 ? "Nível de CO₂ Crítico! Ventile o ambiente." : "Temperatura elevada detectada.";
-        } else {
-            alertArea.style.display = 'none';
+        // Lógica para carregar os dados reais (vinculado ao seu PDF)
+        async function loadBackendData() {
+            // Aqui você usaria o deviceId: 11 conforme o seu código 
+            // const response = await fetch("SUA_API_URL_AQUI");
+            // const data = await response.json();
+            // Atualizaria os spans com data.temperature, data.co2, etc.
         }
-    }
-
-    // Atualiza a cada 5 segundos para simular tempo real
-    setInterval(fetchData, 5000);
-    fetchData(); // Chamada inicial
-</script>
+    </script>
 </body>
 </html>
