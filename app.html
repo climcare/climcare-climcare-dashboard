@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clim Care - Monitorização Clínica</title>
+    <style>
+        /* Variáveis de Cor - Tom Saúde */
+        :root {
+            --primary-green: #2d6a4f;
+            --light-green: #d8f3dc;
+            --alert-red: #e63946;
+            --bg-body: #f0f4f2;
+            --card-bg: #ffffff;
+            --text-main: #1b4332;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+
+        /* Animação para Alertas */
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(230, 57, 70, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0); }
+        }
+
+        .alert-blink {
+            animation: pulse-red 1.5s infinite;
+            border: 2px solid var(--alert-red) !important;
+        }
+
+        /* Layout de Grade */
+        .container { max-width: 900px; margin: auto; }
+        
+        h1 { text-align: center; color: var(--primary-green); font-weight: 800; }
+
+        /* Lista de Dispositivos */
+        .device-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .device-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: 12px;
+            border: 1px solid #c7d2cc;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: center;
+        }
+
+        .status-dot {
+            height: 10px;
+            width: 10px;
+            background-color: #bbb;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .online { background-color: #2ecc71; }
+
+        /* Dashboard de Detalhes (Inspirado na imagem) */
+        .dashboard-detail {
+            display: none; /* Escondido até selecionar um dispositivo */
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+
+        .grid-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: var(--light-green);
+            padding: 15px;
+            border-radius: 15px;
+            position: relative;
+        }
+
+        .stat-label { font-size: 0.8rem; text-transform: uppercase; font-weight: bold; opacity: 0.7; }
+        .stat-value { font-size: 1.5rem; font-weight: 800; display: block; margin-top: 5px; }
+
+        .btn-back {
+            background: var(--primary-green);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Clim Care IAQ</h1>
+    </header>
+
+    <div id="view-list">
+        <h3>Meus Dispositivos</h3>
+        <div class="device-list" id="deviceContainer">
+            </div>
+    </div>
+
+    <div id="view-detail" class="dashboard-detail">
+        <button class="btn-back" onclick="showList()">← Voltar</button>
+        <h2 id="selected-device-id">Dispositivo #--</h2>
+        
+        <div class="grid-stats">
+            <div class="stat-card">
+                <span class="stat-label">🌡️ Temperatura</span>
+                <span class="stat-value" id="val-temp">--°C</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">💧 Umidade</span>
+                <span class="stat-value" id="val-hum">--%</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">☁️ CO2</span>
+                <span class="stat-value" id="val-co2">-- ppm</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">🌫️ PM2.5 (Fumaça)</span>
+                <span class="stat-value" id="val-pm25">-- µg/m³</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">🔊 Ruído</span>
+                <span class="stat-value" id="val-noise">-- dB</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">🔋 Bateria</span>
+                <span class="stat-value" id="val-batt">--%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Simulação de base de dados vinda do SaaS
+    const devices = [
+        { id: 11, status: 'online', alert: true, data: { temp: 38, hum: 12, co2: 850, pm25: 150, noise: 35, batt: 80 } },
+        { id: 12, status: 'online', alert: false, data: { temp: 23, hum: 45, co2: 400, pm25: 12, noise: 30, batt: 95 } },
+        { id: 13, status: 'offline', alert: false, data: null }
+    ];
+
+    function init() {
+        const container = document.getElementById('deviceContainer');
+        container.innerHTML = '';
+
+        devices.forEach(dev => {
+            const card = document.createElement('div');
+            card.className = `device-card \${dev.alert ? 'alert-blink' : ''}`;
+            card.onclick = () => showDashboard(dev.id);
+            
+            card.innerHTML = `
+                <h4>Dispositivo #\${dev.id}</h4>
+                <p><span class="status-dot \${dev.status === 'online' ? 'online' : ''}"></span> 
+                \${dev.status === 'online' ? 'Ativo' : 'Inativo'}</p>
+                \${dev.alert ? '<strong style="color:red">⚠️ ANOMALIA DETETADA</strong>' : ''}
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function showDashboard(id) {
+        const dev = devices.find(d => d.id === id);
+        if(!dev.data) return alert("Dispositivo offline");
+
+        document.getElementById('view-list').style.display = 'none';
+        document.getElementById('view-detail').style.display = 'block';
+        
+        document.getElementById('selected-device-id').innerText = `Dispositivo #\${id}`;
+        document.getElementById('val-temp').innerText = `\${dev.data.temp}°C`;
+        document.getElementById('val-hum').innerText = `\${dev.data.hum}%`;
+        document.getElementById('val-co2').innerText = `\${dev.data.co2} ppm`;
+        document.getElementById('val-pm25').innerText = `\${dev.data.pm25} µg/m³`;
+        document.getElementById('val-noise').innerText = `\${dev.data.noise} dB`;
+        document.getElementById('val-batt').innerText = `\${dev.data.batt}%`;
+    }
+
+    function showList() {
+        document.getElementById('view-list').style.display = 'block';
+        document.getElementById('view-detail').style.display = 'none';
+    }
+
+    init();
+</script>
+
+</body>
+</html>
