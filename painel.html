@@ -124,7 +124,7 @@
         };
 
         try {
-            const app = firebase.initializeApp(firebaseConfig);
+            const analytics = getAnalytics(app);
             db = firebase.database(app).ref("devices/10");
             console.log("✅ Firebase inicializado com sucesso");
         } catch (error) {
