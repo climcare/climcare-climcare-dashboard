@@ -114,17 +114,18 @@
 
         // ✅ CONFIGURAÇÃO CORRIGIDA DO FIREBASE
         const firebaseConfig = {
-            apiKey: "AIzaSyCvqyfaMSCMqFMbQBsk1dd_k5Ru-cnA4Dc", // SUBSTITUA PELA SUA CHAVE
+            apiKey: "AIzaSyCvqyfaMSCMqFMbQBsk1dd_k5Ru-cnA4Dc",
             authDomain: "climcare-e55b7.firebaseapp.com",
-            databaseURL: "https://climcare-e55b7-default-rtdb.firebaseio.com/",
+            databaseURL: "https://climcare-e55b7-default-rtdb.firebaseio.com",
             projectId: "climcare-e55b7",
-            storageBucket: "climcare-e55b7.appspot.com",
-            messagingSenderId: "113741897292", // SUBSTITUA
-            appId: "1:113741897292:web:c8890a57dcbdc95c709ee9" // SUBSTITUA
+            storageBucket: "climcare-e55b7.firebasestorage.app",
+            messagingSenderId: "113741897292",
+            appId: "1:113741897292:web:c8890a57dcbdc95c709ee9",
+            measurementId: "G-H29BS0RGKY"
         };
 
         try {
-            const analytics = getAnalytics(app);
+            const app = firebase.initializeApp(firebaseConfig);
             db = firebase.database(app).ref("devices/10");
             console.log("✅ Firebase inicializado com sucesso");
         } catch (error) {
